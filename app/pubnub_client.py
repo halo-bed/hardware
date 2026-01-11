@@ -1,23 +1,35 @@
 from pubnub.pnconfiguration import PNConfiguration
 from pubnub.pubnub import PubNub
-from config import (
-    PUBNUB_PUBLISH_KEY,
-    PUBNUB_SUBSCRIBE_KEY,
-    PUBNUB_UUID,
-    PUBNUB_CHANNEL,
-)
+from pubnub.callbacks import SubscribeCallback
 
 
-pnconfig = PNConfiguration()
-pnconfig.publish_key = PUBNUB_PUBLISH_KEY
-pnconfig.subscribe_key = PUBNUB_SUBSCRIBE_KEY
-pnconfig.uuid = PUBNUB_UUID
+class PubNubClient:
+    def __init__(self, publish_key: str, subscribe_key: str, uuid: str):
+        pnconfig = PNConfiguration()
+        pnconfig.publish_key = publish_key
+        pnconfig.subscribe_key = subscribe_key
+        pnconfig.uuid = uuid
 
-pubnub = PubNub(pnconfig)
+        self.pubnub = PubNub(pnconfig)
 
+    def publish(self, channel: str, message: dict):
+        self.pubnub.publish().channel(channel).message(message).pn_async(
+            lambda envelope, status: None
+        )
 
-def publish_event(message: dict):
-    pubnub.publish().channel(PUBNUB_CHANNEL).message(message).pn_async(
-        lambda envelope, status: None
-    )
+    def subscribe(self, channel: str, on_message):
+        class Listener(SubscribeCallback):
+            def message(self, pubnub, event):
+                msg = event.message
+                if isinstance(msg, dict):
+                    on_message(msg)
+
+        self.pubnub.add_listener(Listener())
+        self.pubnub.subscribe().channels([channel]).execute()
+
+    def stop(self):
+        try:
+            self.pubnub.stop()
+        except Exception:
+            pass
 
