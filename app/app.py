@@ -1,5 +1,8 @@
 import time
 from config import (
+    validate,
+    BACKEND_BASE_URL, 
+    DEVICE_KEY,
     PIR_PIN,
     MOSFET_PIN,
     WARMUP_SECONDS,
@@ -12,12 +15,20 @@ from config import (
     PUBNUB_PUBLISH_KEY,
     PUBNUB_SUBSCRIBE_KEY,
 )
+from token_client import fetch_device_pubnub_token
 from gpio_control import setup_gpio, read_motion, set_brightness, led_off, cleanup_gpio
 from pubnub_client import PubNubClient
 from controls import ControlState
 
 
 def run():
+    validate()
+
+    token = fetch_device_pubnub_token(BACKEND_BASE_URL, DEVICE_KEY)
+    print("Got device PubNub token.")
+
+    pn = PubNubClient(PUBNUB_PUBLISH_KEY, PUBNUB_SUBSCRIBE_KEY, PUBNUB_UUID, token)
+
     controls = ControlState(
         auto_off=DEFAULT_AUTO_OFF,
         brightness=DEFAULT_BRIGHTNESS,
@@ -25,7 +36,6 @@ def run():
         end_time=None,
     )
 
-    pn = PubNubClient(PUBNUB_PUBLISH_KEY, PUBNUB_SUBSCRIBE_KEY, PUBNUB_UUID)
 
     def handle_control_message(msg: dict):
         changed = controls.update_from_message(msg)
